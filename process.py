@@ -55,7 +55,7 @@ def _delete_rows_by_color(img_array, lower_bound, upper_bound):
     mask_first = np.all((first_pixels >= lower_bound) & (first_pixels <= upper_bound), axis=1)
     mask_last = np.all((last_pixels >= lower_bound) & (last_pixels <= upper_bound), axis=1)
     
-    rows_to_delete_mask = mask_first | mask_last
+    rows_to_delete_mask = mask_first & mask_last
     
     rows_to_keep_mask = ~rows_to_delete_mask
     
@@ -107,6 +107,13 @@ def process_image(image_bytes_py, snippet_to_insert_path):
             if rows_to_add > 0:
                 new_rows = np.tile(row_to_duplicate, (rows_to_add, 1, 1))
                 img_array = np.insert(img_array, 2661, new_rows, axis=0)
+
+        target_height = 2796
+        while img_array.shape[0] > target_height:
+            if img_array.shape[0] > 2693:
+                img_array = np.delete(img_array, 2693, axis=0)
+            else:
+                break
 
         common_colors = _get_most_common_pixels(img_array)
         if common_colors:
@@ -160,6 +167,13 @@ def process_order_image(image_bytes_py):
             if rows_to_add > 0:
                 new_rows = np.tile(row_to_duplicate, (rows_to_add, 1, 1))
                 img_array = np.insert(img_array, 2661, new_rows, axis=0)
+        
+        target_height = 2796
+        while img_array.shape[0] > target_height:
+            if img_array.shape[0] > 2693:
+                img_array = np.delete(img_array, 2693, axis=0)
+            else:
+                break
 
         common_colors = _get_most_common_pixels(img_array)
         if common_colors:
@@ -219,6 +233,13 @@ def process_portfolio_image(image_bytes_py):
                 img_array_current = np.insert(
                     img_array_current, 2661, new_rows, axis=0
                 )
+
+        target_height = 2796
+        while img_array_current.shape[0] > target_height:
+            if img_array_current.shape[0] > 2693:
+                img_array_current = np.delete(img_array_current, 2693, axis=0)
+            else:
+                break
 
         common_colors = _get_most_common_pixels(img_array_current)
         if common_colors:
