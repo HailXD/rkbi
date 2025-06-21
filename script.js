@@ -109,38 +109,34 @@
                             process_order_image(imageBytesPy)
                         ]);
 
-                        const parsedResults = results.map(r => JSON.parse(r));
-
-                        console.log("Most common colors per image:", parsedResults.map(p => p.colors));
-
                         const loader1 = document.getElementById('loader1');
                         if(loader1) loader1.remove();
-                        outputImage1.src = 'data:image/png;base64,' + parsedResults[0].image;
+                        outputImage1.src = 'data:image/png;base64,' + results[0];
                         outputImage1.style.display = 'block';
 
                         const loader2 = document.getElementById('loader2');
                         if(loader2) loader2.remove();
-                        outputImage2.src = 'data:image/png;base64,' + parsedResults[5].image;
+                        outputImage2.src = 'data:image/png;base64,' + results[5];
                         outputImage2.style.display = 'block';
 
                         const loader3 = document.getElementById('loader3');
                         if(loader3) loader3.remove();
-                        outputImage3.src = 'data:image/png;base64,' + parsedResults[1].image;
+                        outputImage3.src = 'data:image/png;base64,' + results[1];
                         outputImage3.style.display = 'block';
 
                         const loader4 = document.getElementById('loader4');
                         if(loader4) loader4.remove();
-                        outputImage4.src = 'data:image/png;base64,' + parsedResults[2].image;
+                        outputImage4.src = 'data:image/png;base64,' + results[2];
                         outputImage4.style.display = 'block';
 
                         const loader5 = document.getElementById('loader5');
                         if(loader5) loader5.remove();
-                        outputImage5.src = 'data:image/png;base64,' + parsedResults[3].image;
+                        outputImage5.src = 'data:image/png;base64,' + results[3];
                         outputImage5.style.display = 'block';
 
                         const loader6 = document.getElementById('loader6');
                         if(loader6) loader6.remove();
-                        outputImage6.src = 'data:image/png;base64,' + parsedResults[4].image;
+                        outputImage6.src = 'data:image/png;base64,' + results[4];
                         outputImage6.style.display = 'block';
                     };
                     reader.readAsArrayBuffer(file);

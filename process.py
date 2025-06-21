@@ -3,7 +3,6 @@ from PIL import Image
 from io import BytesIO
 import base64
 import sys
-import json
 from collections import Counter
 
 
@@ -19,6 +18,20 @@ def _replace_color(img_array, old_color, new_color):
         return img_array
     mask = np.all(img_array == old_color, axis=-1)
     img_array[mask] = new_color
+    return img_array
+
+
+def _clean_middle_rows(img_array):
+    target_color = np.array([24, 25, 30])
+    lower_bound = target_color - 5
+    upper_bound = target_color + 5
+    for i in range(img_array.shape[0] - 2):
+        row1 = img_array[i]
+        row2 = img_array[i + 1]
+        row3 = img_array[i + 2]
+        if np.all(row1 == target_color) and np.all(row3 == target_color):
+            if np.all((row2 >= lower_bound) & (row2 <= upper_bound)):
+                img_array[i + 1] = target_color
     return img_array
 
 
@@ -95,33 +108,22 @@ def process_image(image_bytes_py, snippet_to_insert_path):
                 new_rows = np.tile(row_to_duplicate, (rows_to_add, 1, 1))
                 img_array = np.insert(img_array, 2661, new_rows, axis=0)
 
-        common_colors_log = _get_most_common_pixels(img_array)
-        if common_colors_log:
-            most_common_color = common_colors_log[0][0]
+        common_colors = _get_most_common_pixels(img_array)
+        if common_colors:
+            most_common_color = common_colors[0][0]
             if list(most_common_color) != [24, 25, 30]:
                 img_array = _replace_color(img_array, most_common_color, [24, 25, 30])
-        
+        img_array = _clean_middle_rows(img_array)
         final_img = Image.fromarray(img_array.astype(np.uint8))
-        
-        colors_for_log = {
-            f"#{r:02x}{g:02x}{b:02x}": count
-            for (r, g, b), count in common_colors_log
-        }
-
         buffered = BytesIO()
         final_img.save(buffered, format="PNG")
-        img_base64 = base64.b64encode(buffered.getvalue()).decode("utf-8")
-
-        return json.dumps({"image": img_base64, "colors": colors_for_log})
+        return base64.b64encode(buffered.getvalue()).decode("utf-8")
     except Exception as e:
         print(f"Error in process_image: {e}")
         error_img = Image.new("RGB", (100, 100), color="red")
         buffered = BytesIO()
         error_img.save(buffered, format="PNG")
-        img_base64 = base64.b64encode(buffered.getvalue()).decode("utf-8")
-        return json.dumps(
-            {"image": img_base64, "colors": {"error": str(e)}}
-        )
+        return base64.b64encode(buffered.getvalue()).decode("utf-8")
 
 
 def order_o(image_bytes_py):
@@ -159,30 +161,22 @@ def process_order_image(image_bytes_py):
                 new_rows = np.tile(row_to_duplicate, (rows_to_add, 1, 1))
                 img_array = np.insert(img_array, 2661, new_rows, axis=0)
 
-        common_colors_log = _get_most_common_pixels(img_array)
-        if common_colors_log:
-            most_common_color = common_colors_log[0][0]
+        common_colors = _get_most_common_pixels(img_array)
+        if common_colors:
+            most_common_color = common_colors[0][0]
             if list(most_common_color) != [24, 25, 30]:
                 img_array = _replace_color(img_array, most_common_color, [24, 25, 30])
-
+        img_array = _clean_middle_rows(img_array)
         final_img = Image.fromarray(img_array.astype(np.uint8))
-
-        colors_for_log = {
-            f"#{r:02x}{g:02x}{b:02x}": count
-            for (r, g, b), count in common_colors_log
-        }
-
         buffered = BytesIO()
         final_img.save(buffered, format="PNG")
-        img_base64 = base64.b64encode(buffered.getvalue()).decode("utf-8")
-        return json.dumps({"image": img_base64, "colors": colors_for_log})
+        return base64.b64encode(buffered.getvalue()).decode("utf-8")
     except Exception as e:
         print(f"Error in process_order_image: {e}")
         error_img = Image.new("RGB", (100, 100), color="red")
         buffered = BytesIO()
         error_img.save(buffered, format="PNG")
-        img_base64 = base64.b64encode(buffered.getvalue()).decode("utf-8")
-        return json.dumps({"image": img_base64, "colors": {"error": str(e)}})
+        return base64.b64encode(buffered.getvalue()).decode("utf-8")
 
 
 def process_portfolio_image(image_bytes_py):
@@ -202,16 +196,13 @@ def process_portfolio_image(image_bytes_py):
             highest_yellow_row = np.min(deleted_rows_indices)
 
         if img_array_current.shape[0] == 0:
-            img = Image.new(
-                "RGB",
-                (original_width if original_width > 0 else 100, 100),
-                color=(0, 0, 0),
-            )
-            buffered = BytesIO()
-            img.save(buffered, format="PNG")
-            img_base64 = base64.b64encode(buffered.getvalue()).decode("utf-8")
-            return json.dumps({"image": img_base64, "colors": {}})
-
+            return base64.b64encode(
+                Image.new(
+                    "RGB",
+                    (original_width if original_width > 0 else 100, 100),
+                    color=(0, 0, 0),
+                ).tobytes()
+            ).decode("utf-8")
         if highest_yellow_row != -1:
             actual_insert_row = min(highest_yellow_row, img_array_current.shape[0])
             img_array_current = np.insert(
@@ -229,34 +220,24 @@ def process_portfolio_image(image_bytes_py):
                     img_array_current, 2661, new_rows, axis=0
                 )
 
-        common_colors_log = _get_most_common_pixels(img_array_current)
-        if common_colors_log:
-            most_common_color = common_colors_log[0][0]
+        common_colors = _get_most_common_pixels(img_array_current)
+        if common_colors:
+            most_common_color = common_colors[0][0]
             if list(most_common_color) != [24, 25, 30]:
                 img_array_current = _replace_color(
                     img_array_current, most_common_color, [24, 25, 30]
                 )
-
+        img_array_current = _clean_middle_rows(img_array_current)
         final_img = Image.fromarray(img_array_current.astype(np.uint8))
-        
-        colors_for_log = {
-            f"#{r:02x}{g:02x}{b:02x}": count
-            for (r, g, b), count in common_colors_log
-        }
-
         buffered = BytesIO()
         final_img.save(buffered, format="PNG")
-        img_base64 = base64.b64encode(buffered.getvalue()).decode("utf-8")
-        return json.dumps({"image": img_base64, "colors": colors_for_log})
+        return base64.b64encode(buffered.getvalue()).decode("utf-8")
     except Exception as e:
         print(f"Error in process_portfolio_image: {e}")
         error_img = Image.new("RGB", (100, 100), color="red")
         buffered = BytesIO()
         error_img.save(buffered, format="PNG")
-        img_base64 = base64.b64encode(buffered.getvalue()).decode("utf-8")
-        return json.dumps(
-            {"image": img_base64, "colors": {"error": str(e)}}
-        )
+        return base64.b64encode(buffered.getvalue()).decode("utf-8")
 
 
 if __name__ == "__main__" and "pyodide" not in sys.modules:
