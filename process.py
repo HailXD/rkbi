@@ -18,6 +18,20 @@ def _convert_to_rgb(img):
         return img.convert("RGB")
 
 
+def _delete_rows_by_color(img_array, lower_bound, upper_bound):
+    first_pixels = img_array[:, 0]
+    last_pixels = img_array[:, -1]
+
+    mask_first = np.all((first_pixels >= lower_bound) & (first_pixels <= upper_bound), axis=1)
+    mask_last = np.all((last_pixels >= lower_bound) & (last_pixels <= upper_bound), axis=1)
+    
+    rows_to_delete_mask = mask_first | mask_last
+    
+    rows_to_keep_mask = ~rows_to_delete_mask
+    
+    return img_array[rows_to_keep_mask], np.where(rows_to_delete_mask)[0]
+
+
 def process_image(image_bytes_py, snippet_to_insert_path):
     try:
         img_pil = Image.open(BytesIO(image_bytes_py))
@@ -42,58 +56,29 @@ def process_image(image_bytes_py, snippet_to_insert_path):
         overlay_start_row = 1887
         if overlay_start_row < h_main:
             rows_to_overlay = snippet_account_array.shape[0]
-            end_row = overlay_start_row + rows_to_overlay
-            
-            if end_row > h_main:
-                rows_to_overlay = h_main - overlay_start_row
-                end_row = h_main
-            
-            img_array[overlay_start_row:end_row, :] = snippet_account_array[:rows_to_overlay, :]
+            end_row = min(overlay_start_row + rows_to_overlay, h_main)
+            img_array[overlay_start_row:end_row, :] = snippet_account_array[:(end_row - overlay_start_row), :]
 
         insert_row = 1622
         if insert_row < img_array.shape[0]:
-            part1 = img_array[:insert_row, :]
-            part2 = img_array[insert_row:, :]
-            img_array = np.concatenate((part1, snippet_to_insert_array, part2), axis=0)
+            img_array = np.concatenate((img_array[:insert_row, :], snippet_to_insert_array, img_array[insert_row:, :]), axis=0)
         else:
             img_array = np.concatenate((img_array, snippet_to_insert_array), axis=0)
 
         lower_bound = np.array([75, 75, 0])
         upper_bound = np.array([255, 255, 140])
-
-        height, _, _ = img_array.shape
-        rows_to_delete = []
-
-        for i in range(height):
-            first_pixel = img_array[i, 0]
-            last_pixel = img_array[i, -1]
-
-            if (
-                np.all(first_pixel >= lower_bound)
-                and np.all(first_pixel <= upper_bound)
-            ) or (
-                np.all(last_pixel >= lower_bound) and np.all(last_pixel <= upper_bound)
-            ):
-                rows_to_delete.append(i)
-
-        img_array = np.delete(img_array, rows_to_delete, axis=0)
+        img_array, _ = _delete_rows_by_color(img_array, lower_bound, upper_bound)
 
         if img_array.shape[0] > 2660:
             row_to_duplicate = img_array[2660]
-
             current_height = img_array.shape[0]
             target_height = 2796
-
             rows_to_add = target_height - current_height
-
             if rows_to_add > 0:
-                new_rows = np.array([row_to_duplicate] * rows_to_add)
+                new_rows = np.tile(row_to_duplicate, (rows_to_add, 1, 1))
                 img_array = np.insert(img_array, 2661, new_rows, axis=0)
 
-        if img_array.dtype != np.uint8:
-            img_array = img_array.astype(np.uint8)
-
-        final_img = Image.fromarray(img_array)
+        final_img = Image.fromarray(img_array.astype(np.uint8))
         buffered = BytesIO()
         final_img.save(buffered, format="PNG")
         return base64.b64encode(buffered.getvalue()).decode("utf-8")
@@ -129,40 +114,18 @@ def process_order_image(image_bytes_py):
 
         lower_bound = np.array([75, 75, 0])
         upper_bound = np.array([255, 255, 140])
-
-        height, _, _ = img_array.shape
-        rows_to_delete = []
-
-        for i in range(height):
-            first_pixel = img_array[i, 0]
-            last_pixel = img_array[i, -1]
-
-            if (
-                np.all(first_pixel >= lower_bound)
-                and np.all(first_pixel <= upper_bound)
-            ) or (
-                np.all(last_pixel >= lower_bound) and np.all(last_pixel <= upper_bound)
-            ):
-                rows_to_delete.append(i)
-
-        img_array = np.delete(img_array, rows_to_delete, axis=0)
+        img_array, _ = _delete_rows_by_color(img_array, lower_bound, upper_bound)
 
         if img_array.shape[0] > 2660:
             row_to_duplicate = img_array[2660]
-
             current_height = img_array.shape[0]
             target_height = 2796
-
             rows_to_add = target_height - current_height
-
             if rows_to_add > 0:
-                new_rows = np.array([row_to_duplicate] * rows_to_add)
+                new_rows = np.tile(row_to_duplicate, (rows_to_add, 1, 1))
                 img_array = np.insert(img_array, 2661, new_rows, axis=0)
 
-        if img_array.dtype != np.uint8:
-            img_array = img_array.astype(np.uint8)
-
-        final_img = Image.fromarray(img_array)
+        final_img = Image.fromarray(img_array.astype(np.uint8))
         buffered = BytesIO()
         final_img.save(buffered, format="PNG")
         return base64.b64encode(buffered.getvalue()).decode("utf-8")
@@ -179,34 +142,19 @@ def process_portfolio_image(image_bytes_py):
         img_pil = Image.open(BytesIO(image_bytes_py))
         img_pil_rgb = _convert_to_rgb(img_pil)
         img_array = np.array(img_pil_rgb)
+        original_width = img_array.shape[1]
 
         lower_bound = np.array([75, 75, 0])
         upper_bound = np.array([255, 255, 150])
-
-        original_height, original_width, _ = img_array.shape
-        rows_to_delete = []
-
-        for i in range(original_height):
-            first_pixel = img_array[i, 0]
-            last_pixel = img_array[i, -1]
-            if (
-                np.all(first_pixel >= lower_bound)
-                and np.all(first_pixel <= upper_bound)
-            ) or (
-                np.all(last_pixel >= lower_bound) and np.all(last_pixel <= upper_bound)
-            ):
-                rows_to_delete.append(i)
-
+        
+        img_array_current, deleted_rows_indices = _delete_rows_by_color(img_array, lower_bound, upper_bound)
+        
         highest_yellow_row = -1
-        if rows_to_delete:
-            highest_yellow_row = min(rows_to_delete)
-
-        img_array_current = np.delete(img_array, rows_to_delete, axis=0)
+        if deleted_rows_indices.size > 0:
+            highest_yellow_row = np.min(deleted_rows_indices)
 
         if img_array_current.shape[0] == 0:
-            img_array_current = np.zeros(
-                (100, original_width if original_width > 0 else 100, 3), dtype=np.uint8
-            )
+            return base64.b64encode(Image.new("RGB", (original_width if original_width > 0 else 100, 100), color=(0,0,0)).tobytes()).decode('utf-8')
 
         if highest_yellow_row != -1:
             actual_insert_row = min(highest_yellow_row, img_array_current.shape[0])
@@ -216,22 +164,16 @@ def process_portfolio_image(image_bytes_py):
 
         if img_array_current.shape[0] > 2660:
             row_to_duplicate = img_array_current[2660]
-
             current_height = img_array_current.shape[0]
             target_height = 2796
-
             rows_to_add = target_height - current_height
-
             if rows_to_add > 0:
-                new_rows = np.array([row_to_duplicate] * rows_to_add)
+                new_rows = np.tile(row_to_duplicate, (rows_to_add, 1, 1))
                 img_array_current = np.insert(
                     img_array_current, 2661, new_rows, axis=0
                 )
 
-        if img_array_current.dtype != np.uint8:
-            img_array_current = np.clip(img_array_current, 0, 255).astype(np.uint8)
-
-        final_img = Image.fromarray(img_array_current)
+        final_img = Image.fromarray(img_array_current.astype(np.uint8))
         buffered = BytesIO()
         final_img.save(buffered, format="PNG")
         return base64.b64encode(buffered.getvalue()).decode("utf-8")
