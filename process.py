@@ -3,6 +3,16 @@ from PIL import Image
 from io import BytesIO
 import base64
 import sys
+import json
+from collections import Counter
+
+
+def _get_most_common_pixels(img_array, num_colors=5, thumbnail_size=(50, 50)):
+    img = Image.fromarray(img_array.astype(np.uint8))
+    img.thumbnail(thumbnail_size)
+    pixels = np.array(img).reshape(-1, 3)
+    most_common = Counter(map(tuple, pixels)).most_common(num_colors)
+    return {f"#{r:02x}{g:02x}{b:02x}": count for (r, g, b), count in most_common}
 
 
 def _convert_to_rgb(img):
@@ -79,15 +89,22 @@ def process_image(image_bytes_py, snippet_to_insert_path):
                 img_array = np.insert(img_array, 2661, new_rows, axis=0)
 
         final_img = Image.fromarray(img_array.astype(np.uint8))
+        most_common_colors = _get_most_common_pixels(img_array)
+
         buffered = BytesIO()
         final_img.save(buffered, format="PNG")
-        return base64.b64encode(buffered.getvalue()).decode("utf-8")
+        img_base64 = base64.b64encode(buffered.getvalue()).decode("utf-8")
+
+        return json.dumps({"image": img_base64, "colors": most_common_colors})
     except Exception as e:
         print(f"Error in process_image: {e}")
         error_img = Image.new("RGB", (100, 100), color="red")
         buffered = BytesIO()
         error_img.save(buffered, format="PNG")
-        return base64.b64encode(buffered.getvalue()).decode("utf-8")
+        img_base64 = base64.b64encode(buffered.getvalue()).decode("utf-8")
+        return json.dumps(
+            {"image": img_base64, "colors": {"error": str(e)}}
+        )
 
 
 def order_o(image_bytes_py):
@@ -126,15 +143,18 @@ def process_order_image(image_bytes_py):
                 img_array = np.insert(img_array, 2661, new_rows, axis=0)
 
         final_img = Image.fromarray(img_array.astype(np.uint8))
+        most_common_colors = _get_most_common_pixels(img_array)
         buffered = BytesIO()
         final_img.save(buffered, format="PNG")
-        return base64.b64encode(buffered.getvalue()).decode("utf-8")
+        img_base64 = base64.b64encode(buffered.getvalue()).decode("utf-8")
+        return json.dumps({"image": img_base64, "colors": most_common_colors})
     except Exception as e:
         print(f"Error in process_order_image: {e}")
         error_img = Image.new("RGB", (100, 100), color="red")
         buffered = BytesIO()
         error_img.save(buffered, format="PNG")
-        return base64.b64encode(buffered.getvalue()).decode("utf-8")
+        img_base64 = base64.b64encode(buffered.getvalue()).decode("utf-8")
+        return json.dumps({"image": img_base64, "colors": {"error": str(e)}})
 
 
 def process_portfolio_image(image_bytes_py):
@@ -154,7 +174,15 @@ def process_portfolio_image(image_bytes_py):
             highest_yellow_row = np.min(deleted_rows_indices)
 
         if img_array_current.shape[0] == 0:
-            return base64.b64encode(Image.new("RGB", (original_width if original_width > 0 else 100, 100), color=(0,0,0)).tobytes()).decode('utf-8')
+            img = Image.new(
+                "RGB",
+                (original_width if original_width > 0 else 100, 100),
+                color=(0, 0, 0),
+            )
+            buffered = BytesIO()
+            img.save(buffered, format="PNG")
+            img_base64 = base64.b64encode(buffered.getvalue()).decode("utf-8")
+            return json.dumps({"image": img_base64, "colors": {}})
 
         if highest_yellow_row != -1:
             actual_insert_row = min(highest_yellow_row, img_array_current.shape[0])
@@ -174,15 +202,20 @@ def process_portfolio_image(image_bytes_py):
                 )
 
         final_img = Image.fromarray(img_array_current.astype(np.uint8))
+        most_common_colors = _get_most_common_pixels(img_array_current)
         buffered = BytesIO()
         final_img.save(buffered, format="PNG")
-        return base64.b64encode(buffered.getvalue()).decode("utf-8")
+        img_base64 = base64.b64encode(buffered.getvalue()).decode("utf-8")
+        return json.dumps({"image": img_base64, "colors": most_common_colors})
     except Exception as e:
         print(f"Error in process_portfolio_image: {e}")
         error_img = Image.new("RGB", (100, 100), color="red")
         buffered = BytesIO()
         error_img.save(buffered, format="PNG")
-        return base64.b64encode(buffered.getvalue()).decode("utf-8")
+        img_base64 = base64.b64encode(buffered.getvalue()).decode("utf-8")
+        return json.dumps(
+            {"image": img_base64, "colors": {"error": str(e)}}
+        )
 
 
 if __name__ == "__main__" and "pyodide" not in sys.modules:

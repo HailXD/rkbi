@@ -100,44 +100,48 @@
                         let order_oc = pyodide.globals.get('order_oc');
                         let process_order_image = pyodide.globals.get('process_order_image');
 
-                        let result1Base64 = await process_portfolio_image(imageBytesPy);
-                        let result2Base64 = await order_o(imageBytesPy);
-                        let result3Base64 = await order_c(imageBytesPy);
-                        let result4Base64 = await order_op(imageBytesPy);
-                        let result5Base64 = await order_oc(imageBytesPy);
-                        let result6Base64 = await process_order_image(imageBytesPy);
+                        const results = await Promise.all([
+                            process_portfolio_image(imageBytesPy),
+                            order_o(imageBytesPy),
+                            order_c(imageBytesPy),
+                            order_op(imageBytesPy),
+                            order_oc(imageBytesPy),
+                            process_order_image(imageBytesPy)
+                        ]);
 
+                        const parsedResults = results.map(r => JSON.parse(r));
+
+                        console.log("Most common colors per image:", parsedResults.map(p => p.colors));
 
                         const loader1 = document.getElementById('loader1');
                         if(loader1) loader1.remove();
-                        outputImage1.src = 'data:image/png;base64,' + result1Base64;
+                        outputImage1.src = 'data:image/png;base64,' + parsedResults[0].image;
                         outputImage1.style.display = 'block';
 
                         const loader2 = document.getElementById('loader2');
                         if(loader2) loader2.remove();
-                        outputImage2.src = 'data:image/png;base64,' + result6Base64;
+                        outputImage2.src = 'data:image/png;base64,' + parsedResults[5].image;
                         outputImage2.style.display = 'block';
 
                         const loader3 = document.getElementById('loader3');
                         if(loader3) loader3.remove();
-                        outputImage3.src = 'data:image/png;base64,' + result2Base64;
+                        outputImage3.src = 'data:image/png;base64,' + parsedResults[1].image;
                         outputImage3.style.display = 'block';
 
                         const loader4 = document.getElementById('loader4');
                         if(loader4) loader4.remove();
-                        outputImage4.src = 'data:image/png;base64,' + result3Base64;
+                        outputImage4.src = 'data:image/png;base64,' + parsedResults[2].image;
                         outputImage4.style.display = 'block';
 
                         const loader5 = document.getElementById('loader5');
                         if(loader5) loader5.remove();
-                        outputImage5.src = 'data:image/png;base64,' + result4Base64;
+                        outputImage5.src = 'data:image/png;base64,' + parsedResults[3].image;
                         outputImage5.style.display = 'block';
 
                         const loader6 = document.getElementById('loader6');
                         if(loader6) loader6.remove();
-                        outputImage6.src = 'data:image/png;base64,' + result5Base64;
+                        outputImage6.src = 'data:image/png;base64,' + parsedResults[4].image;
                         outputImage6.style.display = 'block';
-
                     };
                     reader.readAsArrayBuffer(file);
                 } catch (error) {
