@@ -30,7 +30,10 @@ body {
 }
 
 .right-column {
-    flex: 1;
+    flex: 3;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    grid-template-rows: repeat(2, 1fr);
 }
 
 .box {
@@ -63,10 +66,6 @@ body {
     pointer-events: none;
 }
 
-.output-box {
-    flex-basis: calc(50% - 10px);
-    height: calc(50% - 10px);
-}
 
 .output-box h4 {
     margin-top: 0;
@@ -92,4 +91,16 @@ img {
 .loader {
     font-size: 1.1em;
     color: #555;
+}
+
+@media (max-width: 768px) {
+    .container {
+        flex-direction: column;
+        height: auto;
+    }
+
+    .right-column {
+        grid-template-columns: 1fr;
+        grid-template-rows: auto;
+    }
 }
