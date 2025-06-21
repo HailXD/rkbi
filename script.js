@@ -25,14 +25,8 @@
                 pyodide = await loadPyodide();
                 await pyodide.loadPackage(["numpy", "Pillow", "requests"]);
                 
-                const orderFullCode = await (await fetch('order_full.py')).text();
-                pyodide.runPython(orderFullCode);
-
-                const portfolioCode = await (await fetch('portfolio.py')).text();
-                pyodide.runPython(portfolioCode);
-
-                const orderCode = await (await fetch('order.py')).text();
-                pyodide.runPython(orderCode);
+                const processCode = await (await fetch('process.py')).text();
+                pyodide.runPython(processCode);
 
                 const snippetNames = ["Snippet_Account.png", "Snippet_Closing_Partial.png", "Snippet_Closing.png", "Snippet_Opening_Partial.png", "Snippet_Opening.png"];
                 for (const name of snippetNames) {
