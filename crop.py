@@ -44,7 +44,7 @@ TASKS: List[CropTask] = [
     ("IMG_2686.png", "Snippet_Opening_Partial.png", 1569, 1758),
     ("IMG_2685.png", "Snippet_Closing_Partial.png", 1569, 1758),
     ("IMG_2683.png", "Snippet_Opening.png", 1569, 1681),
-    ("IMG_2684.png", "Snippet_Closing.png", 1569, 1758),
+    ("IMG_2684.png", "Snippet_Closing.png", 1569, 1681),
     ("IMG_2683.png", "Snippet_Account.png", 1946, 2077),
 ]
 
