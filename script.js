@@ -15,7 +15,14 @@
             if (!pyodide) {
                 uploadText.textContent = 'Loading Python Environment...';
                 pyodide = await loadPyodide();
-                await pyodide.loadPackage(["numpy", "Pillow"]);
+                await pyodide.loadPackage(["numpy", "Pillow", "requests"]);
+                
+                const orderCode = await (await fetch('order.py')).text();
+                pyodide.runPython(orderCode);
+                
+                const portfolioCode = await (await fetch('portfolio.py')).text();
+                pyodide.runPython(portfolioCode);
+
                 uploadText.textContent = 'Python Ready. Upload Image.';
             }
             return pyodide;
@@ -56,182 +63,10 @@
                     reader.onload = async (e) => {
                         const imageBytes = e.target.result;
 
-                        pyodide.globals.set("image_bytes_arg", pyodide.toPy(new Uint8Array(imageBytes)));
+                        const imageBytesPy = pyodide.toPy(new Uint8Array(imageBytes));
 
-                        await pyodide.runPythonAsync(`
-import numpy as np
-from io import BytesIO
-from PIL import Image, ImageOps
-import base64
-
-def _convert_to_rgb(img):
-    if img.mode == 'RGBA':
-        # Create a white background image
-        bg = Image.new("RGB", img.size, (255, 255, 255))
-        # Paste the RGBA image onto the white background using alpha channel as mask
-        bg.paste(img, mask=img.split()[3])
-        return bg
-    elif img.mode == 'L' or img.mode == 'P': # Grayscale or Palette
-        return img.convert('RGB')
-    elif img.mode == 'RGB':
-        return img
-    else: # For other modes like CMYK, etc., try converting, might not be perfect
-        return img.convert('RGB')
-
-
-# --- Python Function 1 ---
-def process_image_1_py(image_bytes_py):
-    try:
-        img_pil = Image.open(BytesIO(image_bytes_py))
-        img_pil_rgb = _convert_to_rgb(img_pil)
-        img_array = np.array(img_pil_rgb)
-
-        lower_bound = np.array([75, 75, 0])
-        upper_bound = np.array([255, 255, 140])
-
-        original_height, original_width, _ = img_array.shape
-        rows_to_delete = []
-
-        for i in range(original_height):
-            first_pixel = img_array[i, 0]
-            last_pixel = img_array[i, -1]
-            if (np.all(first_pixel >= lower_bound) and np.all(first_pixel <= upper_bound)) or \
-               (np.all(last_pixel >= lower_bound) and np.all(last_pixel <= upper_bound)):
-                rows_to_delete.append(i)
-        
-        img_array_current = np.delete(img_array, rows_to_delete, axis=0)
-        rows_deleted_count = len(rows_to_delete)
-
-        if img_array_current.shape[0] == 0: # All rows deleted
-            img_array_current = np.zeros((100, original_width if original_width > 0 else 100, 3), dtype=np.uint8)
-
-
-        current_height_after_first_delete = img_array_current.shape[0]
-        start_row_ref = int(0.7 * current_height_after_first_delete)
-        
-        consecutive_row_color = np.array([128, 128, 128], dtype=np.uint8) # Default
-        if current_height_after_first_delete > 0: # Ensure there's at least one row
-            # Search for consecutive_row_color
-            # Cap start_row_ref for loop range to avoid issues if it's the last row
-            search_start_idx = min(start_row_ref, current_height_after_first_delete - 2)
-            if search_start_idx < 0: search_start_idx = 0
-
-            if current_height_after_first_delete > 1: # Need at least 2 rows to compare
-                for i in range(search_start_idx, current_height_after_first_delete - 1):
-                    if np.array_equal(img_array_current[i, 0], img_array_current[i + 1, 0]):
-                        consecutive_row_color = img_array_current[i, 0]
-                        break
-                else: # If no consecutive found, use pixel at start_row_ref
-                    consecutive_row_color = img_array_current[min(start_row_ref, current_height_after_first_delete - 1), 0]
-            else: # Only one row
-                consecutive_row_color = img_array_current[0,0]
-
-
-        # Insertions at fixed row 607 (or end if shorter)
-        insert_row_607_target = 607
-        actual_insert_row_607 = min(insert_row_607_target, img_array_current.shape[0])
-
-        img_array_current = np.insert(img_array_current, actual_insert_row_607, [171, 170, 175], axis=0)
-        # for _ in range(8):
-        #     img_array_current = np.insert(img_array_current, actual_insert_row_607 + 1, [24, 25, 30], axis=0)
-        # img_array_current = np.insert(img_array_current, actual_insert_row_607 + 9, [70, 71, 77], axis=0)
-        
-        # Deletion based on 'start_row_ref'
-        # These indices refer to positions in the *current* state of img_array_current
-        indices_to_delete_slice = []
-        current_height_before_slice_delete = img_array_current.shape[0]
-        for i_offset in range(1, 11): # 10 rows: start_row_ref+1 to start_row_ref+10
-            idx = start_row_ref + i_offset
-            if 0 <= idx < current_height_before_slice_delete:
-                indices_to_delete_slice.append(idx)
-        
-        if indices_to_delete_slice: # Check if list is not empty
-            # Sort and reverse delete to handle index shifts correctly if deleting one by one,
-            # or just pass the list to np.delete which handles it.
-            img_array_current = np.delete(img_array_current, indices_to_delete_slice, axis=0)
-
-        # Re-insertion of 'rows_deleted_count' rows
-        # These indices also refer to positions in the *current* state of img_array_current
-        for i in range(rows_deleted_count + 9):
-            current_height_before_reinsert = img_array_current.shape[0]
-            insert_idx_reinsert = min(start_row_ref + i, current_height_before_reinsert)
-            img_array_current = np.insert(img_array_current, insert_idx_reinsert, consecutive_row_color, axis=0)
-
-        if img_array_current.dtype != np.uint8:
-            img_array_current = np.clip(img_array_current, 0, 255).astype(np.uint8)
-        
-        final_img = Image.fromarray(img_array_current)
-        buffered = BytesIO()
-        final_img.save(buffered, format="PNG")
-        return base64.b64encode(buffered.getvalue()).decode('utf-8')
-    except Exception as e:
-        print(f"Error in process_image_1_py: {e}")
-        # Return a small error indicator image (e.g., red square)
-        error_img = Image.new('RGB', (100,100), color='red')
-        buffered = BytesIO()
-        error_img.save(buffered, format="PNG")
-        return base64.b64encode(buffered.getvalue()).decode('utf-8')
-
-
-# --- Python Function 2 ---
-def process_image_2_py(image_bytes_py):
-    try:
-        img_pil = Image.open(BytesIO(image_bytes_py))
-        img_pil_rgb = _convert_to_rgb(img_pil)
-        img_array = np.array(img_pil_rgb)
-
-        lower_bound = np.array([75, 75, 0])
-        upper_bound = np.array([255, 255, 140])
-
-        height, _, _ = img_array.shape
-        rows_to_delete = []
-
-        for i in range(height):
-            first_pixel = img_array[i, 0]
-            last_pixel = img_array[i, -1]
-
-            if (
-                np.all(first_pixel >= lower_bound) and np.all(first_pixel <= upper_bound)
-            ) or (np.all(last_pixel >= lower_bound) and np.all(last_pixel <= upper_bound)):
-                rows_to_delete.append(i)
-
-        img_array = np.delete(img_array, rows_to_delete, axis=0)
-
-        if img_array.shape[0] > 2660:
-            row_to_duplicate = img_array[2660]
-
-            current_height = img_array.shape[0]
-            target_height = 2796
-
-            rows_to_add = target_height - current_height
-
-            if rows_to_add > 0:
-
-                new_rows = np.array([row_to_duplicate] * rows_to_add)
-
-                img_array = np.insert(img_array, 2661, new_rows, axis=0)
-        
-        if img_array.dtype != np.uint8:
-            img_array = img_array.astype(np.uint8)
-
-        final_img = Image.fromarray(img_array)
-        buffered = BytesIO()
-        final_img.save(buffered, format="PNG")
-        return base64.b64encode(buffered.getvalue()).decode('utf-8')
-    except Exception as e:
-        print(f"Error in process_image_2_py: {e}")
-        error_img = Image.new('RGB', (100,100), color='red')
-        buffered = BytesIO()
-        error_img.save(buffered, format="PNG")
-        return base64.b64encode(buffered.getvalue()).decode('utf-8')
-
-# Make functions available
-process_image_1_global = process_image_1_py
-process_image_2_global = process_image_2_py
-                        `);
-
-                        let result1Base64 = await pyodide.globals.get('process_image_1_global')(pyodide.globals.get('image_bytes_arg'));
-                        let result2Base64 = await pyodide.globals.get('process_image_2_global')(pyodide.globals.get('image_bytes_arg'));
+                        let result1Base64 = await pyodide.globals.get('process_portfolio_image')(imageBytesPy);
+                        let result2Base64 = await pyodide.globals.get('process_order_image')(imageBytesPy);
                         
                         const loader1 = document.getElementById('loader1');
                         if(loader1) loader1.remove();
