@@ -223,15 +223,15 @@ def process_portfolio_image(image_bytes_py):
                 img_array_current, actual_insert_row, [171, 170, 175], axis=0
             )
 
-        if img_array_current.shape[0] > 2660:
-            row_to_duplicate = img_array_current[2660]
+        if img_array_current.shape[0] > 2400:
+            row_to_duplicate = img_array_current[2400]
             current_height = img_array_current.shape[0]
             target_height = 2796
             rows_to_add = target_height - current_height
             if rows_to_add > 0:
                 new_rows = np.tile(row_to_duplicate, (rows_to_add, 1, 1))
                 img_array_current = np.insert(
-                    img_array_current, 2661, new_rows, axis=0
+                    img_array_current, 2401, new_rows, axis=0
                 )
 
         target_height = 2796
@@ -282,18 +282,18 @@ if __name__ == "__main__" and "pyodide" not in sys.modules:
     processed_img.save("processed_portfolio_test.png", format="PNG")
 
     # Example: Test one of the order functions
-    try:
-        img = Image.open("order.png")
-    except FileNotFoundError:
-        print("Error: order.png not found for testing.")
-        sys.exit()
+    # try:
+    #     img = Image.open("order.png")
+    # except FileNotFoundError:
+    #     print("Error: order.png not found for testing.")
+    #     sys.exit()
 
-    buffered = BytesIO()
-    img.save(buffered, format="PNG")
-    img_bytes = buffered.getvalue()
+    # buffered = BytesIO()
+    # img.save(buffered, format="PNG")
+    # img_bytes = buffered.getvalue()
     
-    base64_string = order_o(img_bytes)
-    img_data = base64.b64decode(base64_string)
-    processed_img = Image.open(BytesIO(img_data))
-    processed_img.show()
-    processed_img.save("processed_order_test.png", format="PNG")
+    # base64_string = order_o(img_bytes)
+    # img_data = base64.b64decode(base64_string)
+    # processed_img = Image.open(BytesIO(img_data))
+    # processed_img.show()
+    # processed_img.save("processed_order_test.png", format="PNG")
