@@ -86,10 +86,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (loader) loader.remove();
 
                 const imageUrl = 'data:image/png;base64,' + data.image;
-                outputImages[type].src = imageUrl;
-                outputImages[type].style.display = 'block';
-                downloadLinks[type].href = imageUrl;
-                downloadLinks[type].download = `${x}_${type}.png`;
+                if (outputImages[type]) {
+                    outputImages[type].src = imageUrl;
+                    outputImages[type].style.display = 'block';
+                }
+                if (downloadLinks[type]) {
+                    downloadLinks[type].href = imageUrl;
+                    downloadLinks[type].download = `${x}_${type}.png`;
+                }
             }
 
         } catch (error) {
