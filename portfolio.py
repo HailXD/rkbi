@@ -1,8 +1,7 @@
 import numpy as np
-from PIL import Image, ImageOps
+from PIL import Image
 from io import BytesIO
 import base64
-import requests
 import sys
 
 
@@ -42,54 +41,21 @@ def process_portfolio_image(image_bytes_py):
             ):
                 rows_to_delete.append(i)
 
+        highest_yellow_row = -1
+        if rows_to_delete:
+            highest_yellow_row = min(rows_to_delete)
+
         img_array_current = np.delete(img_array, rows_to_delete, axis=0)
-        rows_deleted_count = len(rows_to_delete)
 
         if img_array_current.shape[0] == 0:
             img_array_current = np.zeros(
                 (100, original_width if original_width > 0 else 100, 3), dtype=np.uint8
             )
 
-        current_height_after_first_delete = img_array_current.shape[0]
-        start_row_ref = int(0.7 * current_height_after_first_delete)
-
-        consecutive_row_color = np.array([128, 128, 128], dtype=np.uint8)
-        if current_height_after_first_delete > 0:
-            search_start_idx = min(start_row_ref, current_height_after_first_delete - 2)
-            if search_start_idx < 0:
-                search_start_idx = 0
-
-            if current_height_after_first_delete > 1:
-                for i in range(search_start_idx, current_height_after_first_delete - 1):
-                    if np.array_equal(
-                        img_array_current[i, 0], img_array_current[i + 1, 0]
-                    ):
-                        consecutive_row_color = img_array_current[i, 0]
-                        break
-                else:
-                    consecutive_row_color = img_array_current[
-                        min(start_row_ref, current_height_after_first_delete - 1), 0
-                    ]
-            else:
-                consecutive_row_color = img_array_current[0, 0]
-
-        insert_row_607_target = 607
-        actual_insert_row_607 = min(insert_row_607_target, img_array_current.shape[0])
-
-        img_array_current = np.insert(
-            img_array_current, actual_insert_row_607, [171, 170, 175], axis=0
-        )
-
-        indices_to_delete_slice = []
-        current_height_before_slice_delete = img_array_current.shape[0]
-        for i_offset in range(1, 11):
-            idx = start_row_ref + i_offset
-            if 0 <= idx < current_height_before_slice_delete:
-                indices_to_delete_slice.append(idx)
-
-        if indices_to_delete_slice:
-            img_array_current = np.delete(
-                img_array_current, indices_to_delete_slice, axis=0
+        if highest_yellow_row != -1:
+            actual_insert_row = min(highest_yellow_row, img_array_current.shape[0])
+            img_array_current = np.insert(
+                img_array_current, actual_insert_row, [171, 170, 175], axis=0
             )
 
         if img_array_current.shape[0] > 2660:
@@ -122,7 +88,11 @@ def process_portfolio_image(image_bytes_py):
 
 
 if __name__ == "__main__" and "pyodide" not in sys.modules:
-    img = Image.open("portfolio.png")
+    try:
+        img = Image.open("portfolio.png")
+    except FileNotFoundError:
+        print("Error: portfolio.png not found.")
+        sys.exit()
     buffered = BytesIO()
     img.save(buffered, format="PNG")
     img_bytes = buffered.getvalue()
