@@ -4,16 +4,17 @@ from io import BytesIO
 import base64
 import sys
 from collections import Counter
+from typing import Iterable, List, Optional, Tuple, Union
 
 
-def _get_most_common_pixels(img_array, num_colors=5, thumbnail_size=(50, 50)):
+def _get_most_common_pixels(img_array: np.ndarray, num_colors: int = 5, thumbnail_size: Tuple[int, int] = (50, 50)) -> List[Tuple[Tuple[int, int, int], int]]:
     img = Image.fromarray(img_array.astype(np.uint8))
     img.thumbnail(thumbnail_size)
     pixels = np.array(img).reshape(-1, 3)
     return Counter(map(tuple, pixels)).most_common(num_colors)
 
 
-def _replace_color(img_array, old_color, new_color):
+def _replace_color(img_array: np.ndarray, old_color: Optional[Iterable[int]], new_color: Iterable[int]) -> np.ndarray:
     if old_color is None:
         return img_array
     mask = np.all(img_array == old_color, axis=-1)
@@ -21,7 +22,7 @@ def _replace_color(img_array, old_color, new_color):
     return img_array
 
 
-def _clean_middle_rows(img_array):
+def _clean_middle_rows(img_array: np.ndarray) -> np.ndarray:
     target_color = np.array([24, 25, 30])
     lower_bound = target_color - 5
     upper_bound = target_color + 5
@@ -35,7 +36,7 @@ def _clean_middle_rows(img_array):
     return img_array
 
 
-def _convert_to_rgb(img):
+def _convert_to_rgb(img: Image.Image) -> Image.Image:
     if img.mode == "RGBA":
         bg = Image.new("RGB", img.size, (255, 255, 255))
         bg.paste(img, mask=img.split()[3])
@@ -48,7 +49,7 @@ def _convert_to_rgb(img):
         return img.convert("RGB")
 
 
-def _delete_rows_by_color(img_array, lower_bound, upper_bound):
+def _delete_rows_by_color(img_array: np.ndarray, lower_bound: np.ndarray, upper_bound: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
     first_pixels = img_array[:, 0]
     last_pixels = img_array[:, -1]
 
@@ -62,7 +63,7 @@ def _delete_rows_by_color(img_array, lower_bound, upper_bound):
     return img_array[rows_to_keep_mask], np.where(rows_to_delete_mask)[0]
 
 
-def process_image(image_bytes_py, snippet_to_insert_path):
+def process_image(image_bytes_py: Union[bytes, bytearray], snippet_to_insert_path: str) -> str:
     try:
         img_pil = Image.open(BytesIO(image_bytes_py))
         img_pil_rgb = _convert_to_rgb(img_pil)
@@ -96,7 +97,7 @@ def process_image(image_bytes_py, snippet_to_insert_path):
             img_array = np.concatenate((img_array, snippet_to_insert_array), axis=0)
 
         lower_bound = np.array([75, 75, 0])
-        upper_bound = np.array([255, 255, 140])
+        upper_bound = np.array([255, 255, 155])
         img_array, _ = _delete_rows_by_color(img_array, lower_bound, upper_bound)
 
         if img_array.shape[0] > 2660:
@@ -133,30 +134,30 @@ def process_image(image_bytes_py, snippet_to_insert_path):
         return base64.b64encode(buffered.getvalue()).decode("utf-8")
 
 
-def order_o(image_bytes_py):
+def order_o(image_bytes_py: Union[bytes, bytearray]) -> str:
     return process_image(image_bytes_py, "Snippet_Opening.png")
 
 
-def order_c(image_bytes_py):
+def order_c(image_bytes_py: Union[bytes, bytearray]) -> str:
     return process_image(image_bytes_py, "Snippet_Closing.png")
 
 
-def order_op(image_bytes_py):
+def order_op(image_bytes_py: Union[bytes, bytearray]) -> str:
     return process_image(image_bytes_py, "Snippet_Opening_Partial.png")
 
 
-def order_oc(image_bytes_py):
+def order_oc(image_bytes_py: Union[bytes, bytearray]) -> str:
     return process_image(image_bytes_py, "Snippet_Closing_Partial.png")
 
 
-def process_order_image(image_bytes_py):
+def process_order_image(image_bytes_py: Union[bytes, bytearray]) -> str:
     try:
         img_pil = Image.open(BytesIO(image_bytes_py))
         img_pil_rgb = _convert_to_rgb(img_pil)
         img_array = np.array(img_pil_rgb)
 
         lower_bound = np.array([75, 75, 0])
-        upper_bound = np.array([255, 255, 140])
+        upper_bound = np.array([255, 255, 155])
         img_array, _ = _delete_rows_by_color(img_array, lower_bound, upper_bound)
 
         if img_array.shape[0] > 2660:
@@ -193,7 +194,7 @@ def process_order_image(image_bytes_py):
         return base64.b64encode(buffered.getvalue()).decode("utf-8")
 
 
-def process_portfolio_image(image_bytes_py):
+def process_portfolio_image(image_bytes_py: Union[bytes, bytearray]) -> str:
     try:
         img_pil = Image.open(BytesIO(image_bytes_py))
         img_pil_rgb = _convert_to_rgb(img_pil)
@@ -201,7 +202,7 @@ def process_portfolio_image(image_bytes_py):
         original_width = img_array.shape[1]
 
         lower_bound = np.array([75, 75, 0])
-        upper_bound = np.array([255, 255, 150])
+        upper_bound = np.array([255, 255, 155])
         
         img_array_current, deleted_rows_indices = _delete_rows_by_color(img_array, lower_bound, upper_bound)
         

@@ -1,163 +1,262 @@
-        const uploadBox = document.getElementById('uploadBox');
-        const fileInput = document.getElementById('fileInput');
-        const previewImage = document.getElementById('previewImage');
-        const uploadText = document.getElementById('uploadText');
-        
-        const outputBox1Container = document.getElementById('outputBox1Container');
-        const outputImage1 = document.getElementById('outputImage1');
-        const outputBox2Container = document.getElementById('outputBox2Container');
-        const outputImage2 = document.getElementById('outputImage2');
-        const outputBox3Container = document.getElementById('outputBox3Container');
-        const outputImage3 = document.getElementById('outputImage3');
-        const outputBox4Container = document.getElementById('outputBox4Container');
-        const outputImage4 = document.getElementById('outputImage4');
-        const outputBox5Container = document.getElementById('outputBox5Container');
-        const outputImage5 = document.getElementById('outputImage5');
-        const outputBox6Container = document.getElementById('outputBox6Container');
-        const outputImage6 = document.getElementById('outputImage6');
+const uploadBox = document.getElementById('uploadBox');
+const fileInput = document.getElementById('fileInput');
+const previewImage = document.getElementById('previewImage');
+const uploadText = document.getElementById('uploadText');
 
-        let pyodide = null;
-        let pyodideLoadingPromise = null;
+const outputBox1Container = document.getElementById('outputBox1Container');
+const outputImage1 = document.getElementById('outputImage1');
+const outputBox2Container = document.getElementById('outputBox2Container');
+const outputImage2 = document.getElementById('outputImage2');
+const outputBox3Container = document.getElementById('outputBox3Container');
+const outputImage3 = document.getElementById('outputImage3');
+const outputBox4Container = document.getElementById('outputBox4Container');
+const outputImage4 = document.getElementById('outputImage4');
+const outputBox5Container = document.getElementById('outputBox5Container');
+const outputImage5 = document.getElementById('outputImage5');
+const outputBox6Container = document.getElementById('outputBox6Container');
+const outputImage6 = document.getElementById('outputImage6');
 
-        async function initPyodide() {
-            if (!pyodide) {
-                uploadText.textContent = 'Loading Python Environment...';
-                pyodide = await loadPyodide();
-                await pyodide.loadPackage(["numpy", "Pillow", "requests"]);
-                
-                const processCode = await (await fetch('process.py')).text();
-                pyodide.runPython(processCode);
+const checkPortfolio = document.getElementById('checkPortfolio');
+const checkOrder = document.getElementById('checkOrder');
+const checkOrderO = document.getElementById('checkOrderO');
+const checkOrderC = document.getElementById('checkOrderC');
+const checkOrderOP = document.getElementById('checkOrderOP');
+const checkOrderOC = document.getElementById('checkOrderOC');
 
-                const snippetNames = ["Snippet_Account.png", "Snippet_Closing_Partial.png", "Snippet_Closing.png", "Snippet_Opening_Partial.png", "Snippet_Opening.png"];
-                for (const name of snippetNames) {
-                    const response = await fetch(name);
-                    const buffer = await response.arrayBuffer();
-                    pyodide.FS.writeFile(name, new Uint8Array(buffer));
-                }
+const outputConfigs = [
+    {
+        key: 'portfolio',
+        checkbox: checkPortfolio,
+        container: outputBox1Container,
+        image: outputImage1,
+        loaderId: 'loader1',
+        loaderText: 'Processing Portfolio...',
+        fnName: 'process_portfolio_image'
+    },
+    {
+        key: 'order',
+        checkbox: checkOrder,
+        container: outputBox2Container,
+        image: outputImage2,
+        loaderId: 'loader2',
+        loaderText: 'Processing Order...',
+        fnName: 'process_order_image'
+    },
+    {
+        key: 'orderO',
+        checkbox: checkOrderO,
+        container: outputBox3Container,
+        image: outputImage3,
+        loaderId: 'loader3',
+        loaderText: 'Processing Order O...',
+        fnName: 'order_o'
+    },
+    {
+        key: 'orderC',
+        checkbox: checkOrderC,
+        container: outputBox4Container,
+        image: outputImage4,
+        loaderId: 'loader4',
+        loaderText: 'Processing Order C...',
+        fnName: 'order_c'
+    },
+    {
+        key: 'orderOP',
+        checkbox: checkOrderOP,
+        container: outputBox5Container,
+        image: outputImage5,
+        loaderId: 'loader5',
+        loaderText: 'Processing Order OP...',
+        fnName: 'order_op'
+    },
+    {
+        key: 'orderOC',
+        checkbox: checkOrderOC,
+        container: outputBox6Container,
+        image: outputImage6,
+        loaderId: 'loader6',
+        loaderText: 'Processing Order OC...',
+        fnName: 'order_oc'
+    }
+];
 
-                uploadText.textContent = 'Python Ready. Upload Image.';
-            }
-            return pyodide;
+let pyodide = null;
+let pyodideLoadingPromise = null;
+let lastImageBytes = null;
+let lastResults = {};
+let currentJobId = 0;
+
+async function initPyodide() {
+    if (!pyodide) {
+        uploadText.textContent = 'Loading Python Environment...';
+        pyodide = await loadPyodide();
+        await pyodide.loadPackage(["numpy", "Pillow", "requests"]);
+
+        const processCode = await (await fetch('process.py')).text();
+        pyodide.runPython(processCode);
+
+        const snippetNames = ["Snippet_Account.png", "Snippet_Closing_Partial.png", "Snippet_Closing.png", "Snippet_Opening_Partial.png", "Snippet_Opening.png"];
+        for (const name of snippetNames) {
+            const response = await fetch(name);
+            const buffer = await response.arrayBuffer();
+            pyodide.FS.writeFile(name, new Uint8Array(buffer));
         }
-        
-        pyodideLoadingPromise = initPyodide().catch(err => {
-            console.error("Pyodide initialization failed:", err);
-            uploadText.textContent = 'Error loading Python. Try refreshing.';
-        });
 
+        uploadText.textContent = 'Python Ready. Upload Image.';
+    }
+    return pyodide;
+}
 
-        uploadBox.addEventListener('click', () => {
-            fileInput.click();
-        });
+pyodideLoadingPromise = initPyodide().catch(err => {
+    console.error("Pyodide initialization failed:", err);
+    uploadText.textContent = 'Error loading Python. Try refreshing.';
+});
 
-        fileInput.addEventListener('change', async (event) => {
-            const file = event.target.files[0];
-            if (file) {
-                uploadText.style.display = 'none';
-                previewImage.src = URL.createObjectURL(file);
-                previewImage.style.display = 'block';
+function clearLoader(config) {
+    const loader = document.getElementById(config.loaderId);
+    if (loader) {
+        loader.remove();
+    }
+}
 
-                outputBox1Container.style.display = 'flex';
-                outputImage1.style.display = 'none';
-                outputBox1Container.insertAdjacentHTML('beforeend', '<p class="loader" id="loader1">Processing Portfolio...</p>');
-                
-                outputBox2Container.style.display = 'flex';
-                outputImage2.style.display = 'none';
-                outputBox2Container.insertAdjacentHTML('beforeend', '<p class="loader" id="loader2">Processing Order...</p>');
+function setOutputHidden(config) {
+    clearLoader(config);
+    config.container.style.display = 'none';
+    config.image.style.display = 'none';
+}
 
-                outputBox3Container.style.display = 'flex';
-                outputImage3.style.display = 'none';
-                outputBox3Container.insertAdjacentHTML('beforeend', '<p class="loader" id="loader3">Processing Order O...</p>');
+function showLoader(config) {
+    clearLoader(config);
+    config.container.style.display = 'flex';
+    config.image.style.display = 'none';
+    config.container.insertAdjacentHTML('beforeend', `<p class="loader" id="${config.loaderId}">${config.loaderText}</p>`);
+}
 
-                outputBox4Container.style.display = 'flex';
-                outputImage4.style.display = 'none';
-                outputBox4Container.insertAdjacentHTML('beforeend', '<p class="loader" id="loader4">Processing Order C...</p>');
+function showResult(config, result) {
+    clearLoader(config);
+    config.container.style.display = 'flex';
+    config.image.src = 'data:image/png;base64,' + result;
+    config.image.style.display = 'block';
+}
 
-                outputBox5Container.style.display = 'flex';
-                outputImage5.style.display = 'none';
-                outputBox5Container.insertAdjacentHTML('beforeend', '<p class="loader" id="loader5">Processing Order OP...</p>');
+function setLoaderError(config) {
+    const loader = document.getElementById(config.loaderId);
+    if (loader) {
+        loader.textContent = 'Error';
+    }
+}
 
-                outputBox6Container.style.display = 'flex';
-                outputImage6.style.display = 'none';
-                outputBox6Container.insertAdjacentHTML('beforeend', '<p class="loader" id="loader6">Processing Order OC...</p>');
+async function processConfigs(configs, jobId) {
+    const activeConfigs = configs.filter(config => config.checkbox.checked);
+    if (!activeConfigs.length || !lastImageBytes) {
+        return;
+    }
+    await pyodideLoadingPromise;
+    if (!pyodide) {
+        throw new Error("Pyodide not initialized.");
+    }
 
-                try {
-                    await pyodideLoadingPromise;
-                    if (!pyodide) {
-                        throw new Error("Pyodide not initialized.");
-                    }
+    const imageBytesPy = pyodide.toPy(new Uint8Array(lastImageBytes));
+    const tasks = activeConfigs.map(async (config) => {
+        const fn = pyodide.globals.get(config.fnName);
+        const result = await fn(imageBytesPy);
+        if (fn.destroy) {
+            fn.destroy();
+        }
+        return { config, result };
+    });
 
-                    const reader = new FileReader();
-                    reader.onload = async (e) => {
-                        const imageBytes = e.target.result;
+    const results = await Promise.all(tasks);
+    if (imageBytesPy.destroy) {
+        imageBytesPy.destroy();
+    }
+    if (jobId !== currentJobId) {
+        return;
+    }
 
-                        const imageBytesPy = pyodide.toPy(new Uint8Array(imageBytes));
+    results.forEach(({ config, result }) => {
+        lastResults[config.key] = result;
+        if (config.checkbox.checked) {
+            showResult(config, result);
+        } else {
+            setOutputHidden(config);
+        }
+    });
+}
 
-                        let process_portfolio_image = pyodide.globals.get('process_portfolio_image');
-                        let order_o = pyodide.globals.get('order_o');
-                        let order_c = pyodide.globals.get('order_c');
-                        let order_op = pyodide.globals.get('order_op');
-                        let order_oc = pyodide.globals.get('order_oc');
-                        let process_order_image = pyodide.globals.get('process_order_image');
+uploadBox.addEventListener('click', () => {
+    fileInput.click();
+});
 
-                        const results = await Promise.all([
-                            process_portfolio_image(imageBytesPy),
-                            order_o(imageBytesPy),
-                            order_c(imageBytesPy),
-                            order_op(imageBytesPy),
-                            order_oc(imageBytesPy),
-                            process_order_image(imageBytesPy)
-                        ]);
+fileInput.addEventListener('change', async (event) => {
+    const file = event.target.files[0];
+    if (!file) {
+        return;
+    }
 
-                        const loader1 = document.getElementById('loader1');
-                        if(loader1) loader1.remove();
-                        outputImage1.src = 'data:image/png;base64,' + results[0];
-                        outputImage1.style.display = 'block';
+    uploadText.style.display = 'none';
+    previewImage.src = URL.createObjectURL(file);
+    previewImage.style.display = 'block';
 
-                        const loader2 = document.getElementById('loader2');
-                        if(loader2) loader2.remove();
-                        outputImage2.src = 'data:image/png;base64,' + results[5];
-                        outputImage2.style.display = 'block';
+    currentJobId += 1;
+    const jobId = currentJobId;
+    lastResults = {};
+    lastImageBytes = null;
 
-                        const loader3 = document.getElementById('loader3');
-                        if(loader3) loader3.remove();
-                        outputImage3.src = 'data:image/png;base64,' + results[1];
-                        outputImage3.style.display = 'block';
+    outputConfigs.forEach((config) => {
+        if (config.checkbox.checked) {
+            showLoader(config);
+        } else {
+            setOutputHidden(config);
+        }
+    });
 
-                        const loader4 = document.getElementById('loader4');
-                        if(loader4) loader4.remove();
-                        outputImage4.src = 'data:image/png;base64,' + results[2];
-                        outputImage4.style.display = 'block';
-
-                        const loader5 = document.getElementById('loader5');
-                        if(loader5) loader5.remove();
-                        outputImage5.src = 'data:image/png;base64,' + results[3];
-                        outputImage5.style.display = 'block';
-
-                        const loader6 = document.getElementById('loader6');
-                        if(loader6) loader6.remove();
-                        outputImage6.src = 'data:image/png;base64,' + results[4];
-                        outputImage6.style.display = 'block';
-                    };
-                    reader.readAsArrayBuffer(file);
-                } catch (error) {
-                    console.error("Processing error:", error);
-                    uploadText.textContent = 'Error processing image.';
-                    uploadText.style.display = 'block';
-                    previewImage.style.display = 'none';
-                    
-                    const loader1 = document.getElementById('loader1');
-                    if(loader1) loader1.textContent = 'Error';
-                    const loader2 = document.getElementById('loader2');
-                    if(loader2) loader2.textContent = 'Error';
-                    const loader3 = document.getElementById('loader3');
-                    if(loader3) loader3.textContent = 'Error';
-                    const loader4 = document.getElementById('loader4');
-                    if(loader4) loader4.textContent = 'Error';
-                    const loader5 = document.getElementById('loader5');
-                    if(loader5) loader5.textContent = 'Error';
-                    const loader6 = document.getElementById('loader6');
-                    if(loader6) loader6.textContent = 'Error';
-                }
+    try {
+        const reader = new FileReader();
+        reader.onload = async (e) => {
+            lastImageBytes = e.target.result;
+            const selectedConfigs = outputConfigs.filter(config => config.checkbox.checked);
+            if (!selectedConfigs.length) {
+                return;
             }
-        });
+            try {
+                await processConfigs(selectedConfigs, jobId);
+            } catch (error) {
+                console.error("Processing error:", error);
+                selectedConfigs.forEach(setLoaderError);
+            }
+        };
+        reader.readAsArrayBuffer(file);
+    } catch (error) {
+        console.error("Processing error:", error);
+        uploadText.textContent = 'Error processing image.';
+        uploadText.style.display = 'block';
+        previewImage.style.display = 'none';
+        outputConfigs.forEach(setLoaderError);
+    }
+});
+
+outputConfigs.forEach((config) => {
+    config.checkbox.addEventListener('change', async () => {
+        if (!config.checkbox.checked) {
+            setOutputHidden(config);
+            return;
+        }
+        if (!lastImageBytes) {
+            setOutputHidden(config);
+            return;
+        }
+        if (lastResults[config.key]) {
+            showResult(config, lastResults[config.key]);
+            return;
+        }
+        const jobId = currentJobId;
+        showLoader(config);
+        try {
+            await processConfigs([config], jobId);
+        } catch (error) {
+            console.error("Processing error:", error);
+            setLoaderError(config);
+        }
+    });
+});
