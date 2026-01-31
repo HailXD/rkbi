@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>rkbi</title>
-    <script src="https://cdn.jsdelivr.net/pyodide/v0.25.1/full/pyodide.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pyodide/0.28.3/pyodide.js"></script>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -18,13 +18,15 @@
             <input type="file" id="fileInput" accept="image/*">
             <div class="checklist">
                 <h4>Outputs</h4>
-                <label class="check-item"><input type="checkbox" id="checkPortfolio" checked>Portfolio</label>
-                <label class="check-item"><input type="checkbox" id="checkYellow">Yellow</label>
-                <label class="check-item"><input type="checkbox" id="checkOrder">Order</label>
-                <label class="check-item"><input type="checkbox" id="checkOrderO">Order O</label>
-                <label class="check-item"><input type="checkbox" id="checkOrderC">Order C</label>
-                <label class="check-item"><input type="checkbox" id="checkOrderOP">Order OP</label>
-                <label class="check-item"><input type="checkbox" id="checkOrderOC">Order OC</label>
+                <select id="outputSelect">
+                    <option value="portfolio" selected>Portfolio</option>
+                    <option value="yellow">Yellow</option>
+                    <option value="order">Order</option>
+                    <option value="orderO">Order O</option>
+                    <option value="orderC">Order C</option>
+                    <option value="orderOP">Order OP</option>
+                    <option value="orderOC">Order OC</option>
+                </select>
             </div>
         </div>
         <div class="column right-column">

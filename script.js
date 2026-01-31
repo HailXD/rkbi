@@ -18,18 +18,11 @@ const outputImage6 = document.getElementById('outputImage6');
 const outputBox7Container = document.getElementById('outputBox7Container');
 const outputImage7 = document.getElementById('outputImage7');
 
-const checkPortfolio = document.getElementById('checkPortfolio');
-const checkYellow = document.getElementById('checkYellow');
-const checkOrder = document.getElementById('checkOrder');
-const checkOrderO = document.getElementById('checkOrderO');
-const checkOrderC = document.getElementById('checkOrderC');
-const checkOrderOP = document.getElementById('checkOrderOP');
-const checkOrderOC = document.getElementById('checkOrderOC');
+const outputSelect = document.getElementById('outputSelect');
 
 const outputConfigs = [
     {
         key: 'portfolio',
-        checkbox: checkPortfolio,
         container: outputBox1Container,
         image: outputImage1,
         loaderId: 'loader1',
@@ -38,7 +31,6 @@ const outputConfigs = [
     },
     {
         key: 'yellow',
-        checkbox: checkYellow,
         container: outputBox7Container,
         image: outputImage7,
         loaderId: 'loader7',
@@ -47,7 +39,6 @@ const outputConfigs = [
     },
     {
         key: 'order',
-        checkbox: checkOrder,
         container: outputBox2Container,
         image: outputImage2,
         loaderId: 'loader2',
@@ -56,7 +47,6 @@ const outputConfigs = [
     },
     {
         key: 'orderO',
-        checkbox: checkOrderO,
         container: outputBox3Container,
         image: outputImage3,
         loaderId: 'loader3',
@@ -65,7 +55,6 @@ const outputConfigs = [
     },
     {
         key: 'orderC',
-        checkbox: checkOrderC,
         container: outputBox4Container,
         image: outputImage4,
         loaderId: 'loader4',
@@ -74,7 +63,6 @@ const outputConfigs = [
     },
     {
         key: 'orderOP',
-        checkbox: checkOrderOP,
         container: outputBox5Container,
         image: outputImage5,
         loaderId: 'loader5',
@@ -83,7 +71,6 @@ const outputConfigs = [
     },
     {
         key: 'orderOC',
-        checkbox: checkOrderOC,
         container: outputBox6Container,
         image: outputImage6,
         loaderId: 'loader6',
@@ -158,9 +145,12 @@ function setLoaderError(config) {
     }
 }
 
+function getActiveConfig() {
+    return outputConfigs.find(config => config.key === outputSelect.value) || null;
+}
+
 async function processConfigs(configs, jobId) {
-    const activeConfigs = configs.filter(config => config.checkbox.checked);
-    if (!activeConfigs.length || !lastImageBytes) {
+    if (!configs.length || !lastImageBytes) {
         return;
     }
     await pyodideLoadingPromise;
@@ -169,7 +159,7 @@ async function processConfigs(configs, jobId) {
     }
 
     const imageBytesPy = pyodide.toPy(new Uint8Array(lastImageBytes));
-    const tasks = activeConfigs.map(async (config) => {
+    const tasks = configs.map(async (config) => {
         const fn = pyodide.globals.get(config.fnName);
         const result = await fn(imageBytesPy);
         if (fn.destroy) {
@@ -188,7 +178,7 @@ async function processConfigs(configs, jobId) {
 
     results.forEach(({ config, result }) => {
         lastResults[config.key] = result;
-        if (config.checkbox.checked) {
+        if (config.key === outputSelect.value) {
             showResult(config, result);
         } else {
             setOutputHidden(config);
@@ -215,8 +205,9 @@ fileInput.addEventListener('change', async (event) => {
     lastResults = {};
     lastImageBytes = null;
 
+    const activeConfig = getActiveConfig();
     outputConfigs.forEach((config) => {
-        if (config.checkbox.checked) {
+        if (activeConfig && config.key === activeConfig.key) {
             showLoader(config);
         } else {
             setOutputHidden(config);
@@ -227,15 +218,14 @@ fileInput.addEventListener('change', async (event) => {
         const reader = new FileReader();
         reader.onload = async (e) => {
             lastImageBytes = e.target.result;
-            const selectedConfigs = outputConfigs.filter(config => config.checkbox.checked);
-            if (!selectedConfigs.length) {
+            if (!activeConfig) {
                 return;
             }
             try {
-                await processConfigs(selectedConfigs, jobId);
+                await processConfigs([activeConfig], jobId);
             } catch (error) {
                 console.error("Processing error:", error);
-                selectedConfigs.forEach(setLoaderError);
+                setLoaderError(activeConfig);
             }
         };
         reader.readAsArrayBuffer(file);
@@ -248,27 +238,26 @@ fileInput.addEventListener('change', async (event) => {
     }
 });
 
-outputConfigs.forEach((config) => {
-    config.checkbox.addEventListener('change', async () => {
-        if (!config.checkbox.checked) {
+outputSelect.addEventListener('change', async () => {
+    const activeConfig = getActiveConfig();
+    outputConfigs.forEach((config) => {
+        if (!activeConfig || config.key !== activeConfig.key) {
             setOutputHidden(config);
-            return;
-        }
-        if (!lastImageBytes) {
-            setOutputHidden(config);
-            return;
-        }
-        if (lastResults[config.key]) {
-            showResult(config, lastResults[config.key]);
-            return;
-        }
-        const jobId = currentJobId;
-        showLoader(config);
-        try {
-            await processConfigs([config], jobId);
-        } catch (error) {
-            console.error("Processing error:", error);
-            setLoaderError(config);
         }
     });
+    if (!activeConfig || !lastImageBytes) {
+        return;
+    }
+    if (lastResults[activeConfig.key]) {
+        showResult(activeConfig, lastResults[activeConfig.key]);
+        return;
+    }
+    const jobId = currentJobId;
+    showLoader(activeConfig);
+    try {
+        await processConfigs([activeConfig], jobId);
+    } catch (error) {
+        console.error("Processing error:", error);
+        setLoaderError(activeConfig);
+    }
 });

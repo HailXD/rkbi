@@ -120,6 +120,14 @@ img {
     height: 16px;
 }
 
+.checklist select {
+    background-color: #121212;
+    color: #e6e6e6;
+    border: 2px solid #e6e6e6;
+    padding: 6px 10px;
+    font-family: inherit;
+}
+
 @media (max-width: 768px) {
     .container {
         flex-direction: column;
