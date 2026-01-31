@@ -15,8 +15,11 @@ const outputBox5Container = document.getElementById('outputBox5Container');
 const outputImage5 = document.getElementById('outputImage5');
 const outputBox6Container = document.getElementById('outputBox6Container');
 const outputImage6 = document.getElementById('outputImage6');
+const outputBox7Container = document.getElementById('outputBox7Container');
+const outputImage7 = document.getElementById('outputImage7');
 
 const checkPortfolio = document.getElementById('checkPortfolio');
+const checkYellow = document.getElementById('checkYellow');
 const checkOrder = document.getElementById('checkOrder');
 const checkOrderO = document.getElementById('checkOrderO');
 const checkOrderC = document.getElementById('checkOrderC');
@@ -32,6 +35,15 @@ const outputConfigs = [
         loaderId: 'loader1',
         loaderText: 'Processing Portfolio...',
         fnName: 'process_portfolio_image'
+    },
+    {
+        key: 'yellow',
+        checkbox: checkYellow,
+        container: outputBox7Container,
+        image: outputImage7,
+        loaderId: 'loader7',
+        loaderText: 'Processing Yellow...',
+        fnName: 'process_yellow_image'
     },
     {
         key: 'order',

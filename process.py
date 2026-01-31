@@ -262,6 +262,54 @@ def process_portfolio_image(image_bytes_py: Union[bytes, bytearray]) -> str:
         return base64.b64encode(buffered.getvalue()).decode("utf-8")
 
 
+def process_yellow_image(image_bytes_py: Union[bytes, bytearray]) -> str:
+    try:
+        img_pil = Image.open(BytesIO(image_bytes_py))
+        img_pil_rgb = _convert_to_rgb(img_pil)
+        img_array = np.array(img_pil_rgb)
+        original_width = img_array.shape[1]
+
+        lower_bound = np.array([75, 75, 0])
+        upper_bound = np.array([255, 255, 155])
+
+        img_array_current, _ = _delete_rows_by_color(img_array, lower_bound, upper_bound)
+
+        if img_array_current.shape[0] == 0:
+            return base64.b64encode(
+                Image.new(
+                    "RGB",
+                    (original_width if original_width > 0 else 100, 100),
+                    color=(0, 0, 0),
+                ).tobytes()
+            ).decode("utf-8")
+
+        target_height = 2796
+        while img_array_current.shape[0] > target_height:
+            if img_array_current.shape[0] > 2693:
+                img_array_current = np.delete(img_array_current, 2693, axis=0)
+            else:
+                break
+
+        common_colors = _get_most_common_pixels(img_array_current)
+        if common_colors:
+            most_common_color = common_colors[0][0]
+            if list(most_common_color) != [24, 25, 30]:
+                img_array_current = _replace_color(
+                    img_array_current, most_common_color, [24, 25, 30]
+                )
+        img_array_current = _clean_middle_rows(img_array_current)
+        final_img = Image.fromarray(img_array_current.astype(np.uint8))
+        buffered = BytesIO()
+        final_img.save(buffered, format="PNG")
+        return base64.b64encode(buffered.getvalue()).decode("utf-8")
+    except Exception as e:
+        print(f"Error in process_yellow_image: {e}")
+        error_img = Image.new("RGB", (100, 100), color="red")
+        buffered = BytesIO()
+        error_img.save(buffered, format="PNG")
+        return base64.b64encode(buffered.getvalue()).decode("utf-8")
+
+
 if __name__ == "__main__" and "pyodide" not in sys.modules:
     # This block is for local testing and will not run in Pyodide environment
     # Example: Test process_portfolio_image
